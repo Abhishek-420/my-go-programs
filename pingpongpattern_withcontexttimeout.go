@@ -1,64 +1,73 @@
 package main
 
-import ( "time" 
- "fmt" 
-"sync"
-"context")
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+)
 
-func PingpongpatternWithContext(){
+func PingpongpatternWithContext() {
 
-	ctx, cancel := context.WithTimeout(context.Background(),10 * time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 
 	defer cancel()
 
-	 var wg *sync.WaitGroup
+	wg := sync.WaitGroup{}
 	first := make(chan struct{})
 	second := make(chan struct{})
 
 	wg.Add(2)
-go  printFirstNameWithContext(first,second, ctx, wg)
-go  printLastNameWithContext(first,second,ctx,  wg)
-	
+	go printFirstNameWithContext(first, second, ctx, &wg)
+	go printLastNameWithContext(first, second, ctx, &wg)
+
 	first <- struct{}{}
 
 	wg.Wait()
 
-
-fmt.Println("go routine successfully executed")
+	fmt.Println("go routine successfully executed")
 
 }
 
-
-
-func printFirstNameWithContext(first chan struct{},second chan struct{}, ctx context.Context, wg *sync.WaitGroup){
-
+func printFirstNameWithContext(first chan struct{}, second chan struct{}, ctx context.Context, wg *sync.WaitGroup) {
 
 	defer wg.Done()
-for{
+	for {
 
-	if ctx.Err()!= nil{
-		return
+		select {
+		case <-ctx.Done():
+			return
+		case <-first:
+		}
+
+		fmt.Println("Abhishek")
+
+		select {
+		case <-ctx.Done():
+			return
+		case second <- struct{}{}:
+		}
+
 	}
-
-	<- first
-	fmt.Println("Abhishek")
-	second <- struct{}{}
-}
 }
 
-
-func printLastNameWithContext(first chan struct{},second chan struct{}, ctx context.Context, wg *sync.WaitGroup){
-
+func printLastNameWithContext(first chan struct{}, second chan struct{}, ctx context.Context, wg *sync.WaitGroup) {
 
 	defer wg.Done()
-	for{
+	for {
 
-				if ctx.Err()!= nil{
-		return
-	}
+		select {
+		case <-ctx.Done():
+			return
+		case <-second:
+		}
 
-	<- second
-	fmt.Println("Rajput")
-	first <- struct{}{}
+		fmt.Println("Rajput")
+
+		select {
+		case <-ctx.Done():
+			return
+		case first <- struct{}{}:
+		}
 	}
 }
